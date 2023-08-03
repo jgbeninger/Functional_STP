@@ -1121,7 +1121,7 @@ for pre_type in pre_mses.keys():
         
         #plt.title("Supervised Multilabel Classification Accuracy By Representation With PCA \n Non-Baseline Kruskal Wallis "+pval_to_str(group_pval))
         #f.suptitle("Model Fit For "+pre_type +" Pre_type")
-        f.suptitle("Mean of "+cre_capital[post_type]+" Pre")
+        f.suptitle("Mean of "+cre_capital[pre_type]+" Pre")
         #ax.set_title("Mean Value of Model and Data by Stimulus for "+post_type+" Post_type")
         #plt.legend()
         #ax2.legend()
