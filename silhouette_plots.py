@@ -19,10 +19,10 @@ from sklearn import metrics
 
 #----------------------------------------------------------------------------------
 #load in saved arrays
-rodent_data_file = open('./processed_input_rodent_jan24.p', "rb")
+rodent_data_file = open('./processed_input_rodent.p', "rb")
 rodent_data = pickle.load(rodent_data_file)
 
-human_data_file = open('./processed_input_human_jan24.p', "rb")
+human_data_file = open('./processed_input_human.p', "rb")
 human_data = pickle.load(human_data_file)
 
 rodent_phys_data = [row[3:8] for row in rodent_data[:]] #phys only w/ 50Hz rec
