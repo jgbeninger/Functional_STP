@@ -7,6 +7,6 @@ mkdir fig2 #create a folder for fig2 because the Silhouette plots script generat
 python silhouette_plots.py
 python Human_Single_kernel_plots.py srp_fits_human/*
 python joint_pc_projections.py
-python human_plota.py srp_fits_human/*
+python human_plots.py srp_fits_human/*
 mkdir fig4 #create a folder for fig4 because the similarity measures script generates plots for both fig3 and fig4
 python similarity_measures.py
