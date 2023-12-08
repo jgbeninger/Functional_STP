@@ -97,13 +97,13 @@ for i in range(1, len(sys.argv)):
     cut_on = '_'
     file_name = sys.argv[i]
     #print(i)
-    print(file_name)
-    pair_id = file_name.split(cut_on)[5] #6 for standard, 8 two step, 9 on windows
+    #print(file_name)
+    pair_id = file_name.split(cut_on)[5] #6 for standard, 8 two step, 9 on windows, 5in github v1
     pair_id = int(pair_id.split(".p")[0])
-    pre_type = file_name.split(cut_on)[3] #4 for standard, 6 two step, 7 on windows
+    pre_type = file_name.split(cut_on)[3] #4 for standard, 6 two step, 7 on windows, 3 in github v1
     pre_type = pre_type.split(cut_on)[0]
     pre_type = pre_type.split("/")[1]
-    post_type = file_name.split(cut_on)[4] #5 for standard, 7 two step, 8 on windows
+    post_type = file_name.split(cut_on)[4] #5 for standard, 7 two step, 8 on windows, 4 in github v1
     post_type = post_type.split(cut_on)[0]
     #print("Pre_type = "+pre_type+" post_type = "+post_type+" pair_id = "+str(pair_id))
     
@@ -598,7 +598,7 @@ def cluster_centroids(input_data, row_labels, num_clusters=3, id_index=2):
     for i in range(0, len(labels)):
         num_by_cluster[labels[i]] = num_by_cluster[labels[i]] +1
     
-    return (centroid_features, labels, num_by_cluster, pca, pca_result)    
+    return (centroid_features, labels, num_by_cluster, pca, scaler, pca_result)    
     """
     cluster_ids = [[] for i in range(0, num_clusters)]
     for row, label in enumerate(labels):
@@ -715,32 +715,45 @@ def gen_kernel(mu_amps, mu_taus, num_timesteps, mu_baseline=None, dt=1):
 #test cluster centers
 print("running cluster centroids")
 
+
+#Save params with cluster labels to output csv:
+pca = copy.deepcopy(PCA(whiten=True))
+scaler = StandardScaler()
+scaler.fit(model_data)
+scaled_arr = scaler.transform(model_data)
+pca_result = pca.fit_transform(scaled_arr)
+cluster_alg = OPTICS(min_samples=8, metric="sqeuclidean")
+cluster_alg.fit(pca_result) 
+cluster_predictions = cluster_alg.labels_
+
+out_table = [[] for i in range(0, len(model_data))]
+for i in range(0, len(model_data)):
+    if cluster_predictions[i] > -1:
+        out_table[i].append('R'+str(cluster_predictions[i])) #cluster
+    else:
+        out_table[i].append('R4')
+    out_table[i].append(row_labels[i][0]) #pre type
+    out_table[i].append(row_labels[i][1]) #post type
+    out_table[i].append(row_labels[i][2]) #ID
+    for j in range(0, len(model_data[0])):
+        out_table[i].append(round(model_data[i][j],3))
+    #out_table[i].append(cluster_labels_surr[i]+1)
+out_arr = np.asarray(out_table)
+#row_length = len(out_arr[0, :])
+#ind = np.argsort( out_arr[:,row_length-1] )
+#out_arr = out_arr[ind] #sort by cluster id
+print(out_arr)
+np.savetxt("fig2/1.3mMparams.csv", out_arr, delimiter=",", fmt='%s')
+
 #mu_amps
 num_clusters = 5
-model_centroids, cluster_labels, syn_by_cluster, pca, PCA_result  = cluster_centroids(model_data, row_labels, num_clusters=num_clusters)
+model_centroids, cluster_labels, syn_by_cluster, pca, scaler_fitted, PCA_result  = cluster_centroids(model_data, row_labels, num_clusters=num_clusters)
 
 #set up OPTICS clustering
 km = OPTICS(min_samples=8, metric="sqeuclidean") #metric="braycurtis" num=6
 #km = OPTICS(min_samples=8, metric="braycurtis") #metric="braycurtis"
 #km = AgglomerativeClustering(affinity="l2", linkage="average")
 surrogate_means, surrogate_SDs, cluster_sizes, cluster_labels_surr = surrogate_centroids(model_data, row_labels, km)
-
-#Save params with cluster labels to output csv:
-out_table = [[] for i in range(0, len(model_data))]
-for i in range(0, len(model_data)):
-    out_table[i].append('R'+str(cluster_labels_surr[i]+1)) #cluster
-    out_table[i].append(row_labels[i][0]) #pre type
-    out_table[i].append(row_labels[i][1]) #post type
-    for j in range(0, len(model_data[0])):
-        out_table[i].append(round(model_data[i][j],3))
-    out_table[i].append(cluster_labels_surr[i]+1)
-out_arr = np.asarray(out_table)
-row_length = len(out_arr[0, :])
-ind = np.argsort( out_arr[:,row_length-1] )
-out_arr = out_arr[ind] #sort by cluster id
-print(out_arr)
-np.savetxt("fig2/1.3mMparams.csv", out_arr[:, 0:row_length-1], delimiter=",", fmt='%s')
-
 
 #------------------------------------------------------------------------------
 #get accuracy cross vals
@@ -986,6 +999,75 @@ def cluster_cre_comp(labeled_arr, cre_types, cre_entry_index, num_clusters, cre_
     plt.savefig(save_name, transparent=True)
     #plt.show()
 #------------------------------------------------------------------------------
+    
+def pre_post_cluster_mat(labeled_arr, pre_types, post_types, pre_entry_index, post_entry_index, num_clusters, save_dir):
+    """
+    labeled_arr: array with cluster labels as per merged_arr below
+    
+    cre_types: set of unique cre_types to check
+    
+    cre_entry_index: index in arr of cre_type to test against
+    """
+    cluster_label_index = 0
+    
+    #create 2d array of pre-post paird cre_type count by cluster
+    pairs_by_cluster = [{} for i in range(0, num_clusters)]
+    pres_by_cluster = [[] for i in range(0, num_clusters)]
+    posts_by_cluster = [[] for i in range(0, num_clusters)]
+    for i in range(0, len(labeled_arr)):
+        cluster_label = labeled_arr[i][cluster_label_index]
+        pre_label = labeled_arr[i][pre_entry_index]
+        post_label = labeled_arr[i][post_entry_index]
+        cre_pair = (pre_label, post_label)
+        if cre_pair in pairs_by_cluster[cluster_label]:
+            pairs_by_cluster[cluster_label][cre_pair] += 1
+        else:
+            pairs_by_cluster[cluster_label][cre_pair] = 1
+            pres_by_cluster[cluster_label].append(pre_label)
+            posts_by_cluster[cluster_label].append(post_label)
+
+    for i in range(0, num_clusters):
+        pres_by_cluster[i] = set(pres_by_cluster[i])
+        posts_by_cluster[i] = set(posts_by_cluster[i])
+    for cluster_num, cluster in enumerate(pairs_by_cluster):
+        #generate matrix here
+        fig, ax = plt.subplots()
+        print("cluster num = "+str(cluster_num))
+        print("printing pres")
+        print(pres_by_cluster[cluster_num] )
+        print("printing posts")
+        print(posts_by_cluster[cluster_num] )
+        intersection_matrix = np.zeros((len(pres_by_cluster[cluster_num]), len(posts_by_cluster[cluster_num])))
+        for i, pre in enumerate(pres_by_cluster[cluster_num]):
+            for j, post in enumerate(posts_by_cluster[cluster_num]):
+                pair = (pre, post)
+                try:
+                    pair_count = cluster[pair]
+                except: #when count is 0
+                    pair_count = 0
+                ax.text(i, j, str(pair_count), va='center', ha='center')
+                intersection_matrix[i, j] = pair_count
+        intersection_matrix = np.transpose(intersection_matrix)
+        ax.matshow(intersection_matrix, zorder=0)
+        print("printing intersection matrix")
+        print(intersection_matrix)
+        ax.set_yticks([k for k in range(0, len(posts_by_cluster[cluster_num]))])
+        ax.set_xticks([k for k in range(0, len(pres_by_cluster[cluster_num]))])
+        ax.xaxis.set_ticks_position('bottom')
+        plt.setp([tick.label1 for tick in ax.xaxis.get_major_ticks()], rotation=45,
+         ha="right", va="center", rotation_mode="anchor")
+        ax.set_yticklabels(posts_by_cluster[cluster_num])
+        ax.set_xticklabels(pres_by_cluster[cluster_num])
+        save_name = save_dir+"/pre_post_pairing_mat_"+str(cluster_num)+".svg"
+        fig.set_size_inches((2.4, 2.198))
+        fig.set_dpi(1200)
+        fig.tight_layout()
+        plt.title("Cluster "+str(cluster_num))
+        plt.ylabel("Post-Type")
+        plt.xlabel("Pre-Type")
+        plt.savefig(save_name, transparent=True)
+    
+#------------------------------------------------------------------------------
 
 def save_single_kernel(mu_amps, mu_baseline, title_name, file_name, colour="xkcd:blue"):
     f = plt.figure()
@@ -1030,6 +1112,11 @@ print("pre")
 cluster_cre_comp(merged_arr, unique_pre, pre_index, num_clusters, "Pre-Types", save_name_inverted_pre)
 print("post")
 cluster_cre_comp(merged_arr, unique_post, post_index, num_clusters, "Post-Types", save_name_inverted_post)
+
+#save pre_post pair matrix
+pair_save_dir = "supplemental_figs"
+pre_post_cluster_mat(merged_arr, unique_pre, unique_post, pre_index, post_index, num_clusters, pair_save_dir)
+
 #------------------------------------------------------------------------------
 
 
@@ -1672,6 +1759,8 @@ plt.xlabel("Time (ms)")
 plt.title("Kernels by Cluster Rodent")
 x = [i for i in range(-30,1000)]
 kernels_over_time = []
+plt.axhline(y=6, color='xkcd:steel grey', linestyle='--')
+plt.axhline(y=-6, color='xkcd:steel grey', linestyle='--')
 for i in range(0, len(surrogate_means)):
     label = "cluster "+str(i)+": "+str(syn_by_cluster_surr[i])+" synapses, " #+str(runs_by_cluster_surr[i]) +" runs"
     mu_amps = [surrogate_means[i,1], surrogate_means[i, 2], surrogate_means[i,3]] #add 1 to all values
@@ -1685,7 +1774,7 @@ for i in range(0, len(surrogate_means)):
     file_name = single_kernel_dir + "rodent_cluster_"+str(i)
     title_name = "rodent cluster "+str(i)
     plt.plot(kernel_x, kernel_y, label=label, color=colour_set[i]) #match colour to bar plots
-    
+
     #plt.plot(kernel_x, kernel_y)
 #plt.legend()
 f.set_size_inches((3.305, 3.558))
@@ -1756,7 +1845,7 @@ for i in range(0, len(clf_means_pre_sct)):
         #print("selected: "+str(unique_pre[i]))
         #print("printing prediction_rows")
         #print(prediction_rows_pre)
-        plt.scatter(prediction_rows_pre_sct[i][:, 0], prediction_rows_pre_sct[i][:, 1], label=unique_pre[i])
+        plt.scatter(prediction_rows_pre_sct[i][:, 0], prediction_rows_pre_sct[i][:, 1], label=unique_pre[i], alpha=0.7)
         #plt.plot(kernel_x, kernel_y)
     else:
         print(unique_pre[i])
@@ -1794,7 +1883,7 @@ for i in range(0, len(clf_means_pre_sct)):
         #print("selected: "+str(unique_pre[i]))
         #print("printing prediction_rows")
         #print(prediction_rows_pre)
-        plt.scatter(prediction_rows_pre_sct[i][:, 0], prediction_rows_pre_sct[i][:, 1], label=unique_pre[i])
+        plt.scatter(prediction_rows_pre_sct[i][:, 0], prediction_rows_pre_sct[i][:, 1], label=unique_pre[i], alpha=0.7)
         #plt.plot(kernel_x, kernel_y)
     else:
         print(unique_pre[i])
@@ -1830,7 +1919,7 @@ for i in range(0, len(clf_means_pre_sct)):
         #print(prediction_rows_pre)
         #label = ""+unique_post[i]+": "+str(len(prediction_rows_post_sct[i][:, 0]))+" synapses" 
         label = ""+unique_post[i]
-        plt.scatter(prediction_rows_post_sct[i][:, 0], prediction_rows_post_sct[i][:, 1], label=label )
+        plt.scatter(prediction_rows_post_sct[i][:, 0], prediction_rows_post_sct[i][:, 1], label=label, alpha=0.7)
         #plt.plot(kernel_x, kernel_y)
     else:
         print(unique_pre[i])
@@ -1862,7 +1951,7 @@ for i in range(0, len(clf_means_pre_sct)):
         #print(prediction_rows_pre)
         #label = ""+unique_post[i]+": "+str(len(prediction_rows_post_sct[i][:, 0]))+" synapses" 
         label = ""+unique_post[i]
-        plt.scatter(prediction_rows_post_sct[i][:, 0], prediction_rows_post_sct[i][:, 1], label=label )
+        plt.scatter(prediction_rows_post_sct[i][:, 0], prediction_rows_post_sct[i][:, 1], label=label, alpha=0.7)
         #plt.plot(kernel_x, kernel_y)
     else:
         print(unique_pre[i])
@@ -1895,6 +1984,9 @@ print("running unsupervised_scatter")
 cluster_predictions = unsupervised_scatter(train_set) 
 
 
+
+
+
 f= plt.figure()
 #plt.title("clusters, model PCA 1.3mM")
 plt.title("Rodent Clusters")
@@ -1909,7 +2001,7 @@ for i in range(len(cluster_predictions)-1, -1, -1):
     #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
     label = ""+str(i)
     #if isinstance(prediction_rows_post_sct[i], np.ndarray):
-    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 1], label=label, color=colour_set[i])
+    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 1], label=label, color=colour_set[i], alpha=0.7)
     """
     else:
         print("exception on prediction i= "+str(i))
@@ -1927,6 +2019,65 @@ save_name = "./fig2/Model_cluster_scatter.svg"
 plt.savefig(save_name, transparent=True)
 
 #----------------------------------------------------------
+#plot again with median kernels highlighted
+
+scaled_arr = scaler_fitted.transform(surrogate_means)
+medians_pca_result = pca.transform(scaled_arr)
+
+"""
+for i in range(0, len(surrogate_means)):
+    label = "cluster "+str(i)+": "+str(syn_by_cluster_surr[i])+" synapses, " #+str(runs_by_cluster_surr[i]) +" runs"
+    mu_amps = [surrogate_means[i,1], surrogate_means[i, 2], surrogate_means[i,3]] #add 1 to all values
+    mu_baseline = surrogate_means[i,0] 
+    kernel_x, kernel_y = gen_kernel(mu_amps, mu_kernel_taus, 1000, mu_baseline=mu_baseline, dt=1)
+"""
+
+f= plt.figure()
+#plt.title("clusters, model PCA 1.3mM")
+plt.title("Rodent Clusters")
+ax = plt.subplot(111)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+x = [i for i in range(-30, 1000)]
+kernels_over_time = []
+for i in range(len(cluster_predictions)-1, -1, -1):
+    #print("printing prediction row")
+    #print(prediction_rows_post_sct[i])
+    #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
+    label = ""+str(i)
+    #if isinstance(prediction_rows_post_sct[i], np.ndarray):
+    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 1], label=label, color=colour_set[i], alpha=0.7)
+    """
+    else:
+        print("exception on prediction i= "+str(i))
+        #plt.plot(kernel_x, kernel_y)
+    """
+    
+#add median kernel markers
+marker_set = ['^','s','8', 'P', 'X']
+for i in range(0, len(medians_pca_result)):
+    plt.scatter(medians_pca_result[i][0], medians_pca_result[i][1], marker=marker_set[i], color='k', alpha=1)
+
+plt.xlabel("R-PC1")
+plt.ylabel("R-PC2")
+#plt.legend()
+#f.set_size_inches((3.30, 2.40))
+f.set_size_inches((4.125, 3.0)) #for big-small plot
+f.set_dpi(1200)
+f.tight_layout()
+#plt.legend(bbox_to_anchor=(1.0, 1.0))
+save_name = "./fig2/Model_cluster_scatter_medians.svg"
+plt.savefig(save_name, transparent=True)
+
+#----------------------------------------------------------
+
+for i in range(0, len(surrogate_means)):
+    label = "cluster "+str(i)+": "+str(syn_by_cluster_surr[i])+" synapses, " #+str(runs_by_cluster_surr[i]) +" runs"
+    mu_amps = [surrogate_means[i,1], surrogate_means[i, 2], surrogate_means[i,3]] #add 1 to all values
+    mu_baseline = surrogate_means[i,0] 
+    kernel_x, kernel_y = gen_kernel(mu_amps, mu_kernel_taus, 1000, mu_baseline=mu_baseline, dt=1)
+
+
 
 #generate second version for fig4
 f= plt.figure()
@@ -1943,7 +2094,7 @@ for i in range(len(cluster_predictions)-1, -1, -1):
     #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
     label = ""+str(i)
     #if isinstance(prediction_rows_post_sct[i], np.ndarray):
-    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 1], label=label, color=colour_set[i])
+    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 1], label=label, color=colour_set[i], alpha=0.7)
     """
     else:
         print("exception on prediction i= "+str(i))
@@ -1980,7 +2131,7 @@ for i in range(len(cluster_predictions)-1, -1, -1):
     #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
     label = ""+str(i)
     #if isinstance(prediction_rows_post_sct[i], np.ndarray):
-    plt.scatter(cluster_predictions[i][:, 2], cluster_predictions[i][:, 3], label=label, color=colour_set[i])
+    plt.scatter(cluster_predictions[i][:, 2], cluster_predictions[i][:, 3], label=label, color=colour_set[i], alpha=0.7)
     """
     else:
         print("exception on prediction i= "+str(i))
@@ -2013,12 +2164,13 @@ for i in range(len(cluster_predictions)-1, -1, -1):
     #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
     label = ""+str(i)
     #if isinstance(prediction_rows_post_sct[i], np.ndarray):
-    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 4], label=label, color=colour_set[i])
+    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 4], label=label, color=colour_set[i], alpha=0.7)
     """
     else:
         print("exception on prediction i= "+str(i))
         #plt.plot(kernel_x, kernel_y)
     """
+
 plt.xlabel("PC1")
 plt.ylabel("PC5")
 #plt.legend()
@@ -2030,6 +2182,95 @@ f.tight_layout()
 save_name = "./fig2/Model_cluster_scatter_PC15.svg"
 plt.savefig(save_name, transparent=True)
 #----------------------------------------------------------------
+
+#plot the above withe median markers
+#plot pc3 and 4 for clustering
+f= plt.figure()
+#plt.title("clusters, model PCA 1.3mM")
+plt.title("Rodent Clusters")
+ax = plt.subplot(111)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+x = [i for i in range(-30,1000)]
+kernels_over_time = []
+for i in range(len(cluster_predictions)-1, -1, -1):
+    #print("printing prediction row")
+    #print(prediction_rows_post_sct[i])
+    #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
+    label = ""+str(i)
+    #if isinstance(prediction_rows_post_sct[i], np.ndarray):
+    plt.scatter(cluster_predictions[i][:, 2], cluster_predictions[i][:, 3], label=label, color=colour_set[i], alpha=0.7)
+    """
+    else:
+        print("exception on prediction i= "+str(i))
+        #plt.plot(kernel_x, kernel_y)
+    """
+    
+#add median kernel markers
+marker_set = ['^','s','8', 'P', 'X']
+for i in range(0, len(medians_pca_result)):
+    plt.scatter(medians_pca_result[i][2], medians_pca_result[i][3], marker=marker_set[i], color='k', alpha=1)
+
+plt.xlabel("R-PC3")
+plt.ylabel("R-PC4")
+#plt.legend()
+#f.set_size_inches((3.30, 2.40))
+f.set_size_inches((2.04, 2.04)) #for big-small plot
+f.set_dpi(1200)
+f.tight_layout()
+#plt.legend(bbox_to_anchor=(1.0, 1.0))
+save_name = "./fig2/Model_cluster_scatter_PC34_medians.svg"
+plt.savefig(save_name, transparent=True)
+#plt.show()
+
+#plot pc1 and 5 for clustering
+f= plt.figure()
+#plt.title("clusters, model PCA 1.3mM")
+plt.title("Rodent Clusters")
+ax = plt.subplot(111)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+x = [i for i in range(-30,1000)]
+kernels_over_time = []
+for i in range(len(cluster_predictions)-1, -1, -1):
+    #print("printing prediction row")
+    #print(prediction_rows_post_sct[i])
+    #label = ""+str(i)+": "+str(len(cluster_predictions[i][:, 0]))+" synapses" 
+    label = ""+str(i)
+    #if isinstance(prediction_rows_post_sct[i], np.ndarray):
+    plt.scatter(cluster_predictions[i][:, 0], cluster_predictions[i][:, 4], label=label, color=colour_set[i], alpha=0.7)
+    """
+    else:
+        print("exception on prediction i= "+str(i))
+        #plt.plot(kernel_x, kernel_y)
+    """
+    
+#add median kernel markers
+marker_set = ['^','s','8', 'P', 'X']
+for i in range(0, len(medians_pca_result)):
+    plt.scatter(medians_pca_result[i][0], medians_pca_result[i][4], marker=marker_set[i], color='k', alpha=1)
+    
+plt.xlabel("R-PC1")
+plt.ylabel("R-PC5")
+#plt.legend()
+#f.set_size_inches((3.30, 2.40))
+f.set_size_inches((2.04, 2.04)) #for big-small plot
+f.set_dpi(1200)
+f.tight_layout()
+#plt.legend(bbox_to_anchor=(1.0, 1.0))
+save_name = "./fig2/Model_cluster_scatter_PC15_medians.svg"
+plt.savefig(save_name, transparent=True)
+
+#print PCA details
+print("PCA explained variance:")
+print(pca.explained_variance_)
+print("PCA components:")
+print(pca.components_)
+#----------------------------------------------------------------
+
+
+
+
 
 fig = plt.figure()
 fig.set_size_inches(12, 12)
