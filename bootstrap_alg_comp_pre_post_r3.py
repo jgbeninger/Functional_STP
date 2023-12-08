@@ -74,6 +74,11 @@ import matplotlib.lines as mlines
 
 row_info = []
 data = []
+pyr_types = ['nr5a1', 'rorb']
+pyr_indices = []
+
+l5et_types = ['sim1', 'fam84b']
+l5et_indices = []
 
 data_post_pre = {}
 unique_pre = set()
@@ -95,12 +100,12 @@ for i in range(1, len(sys.argv)):
     file_name = sys.argv[i]
     print(i)
     print(file_name)
-    pair_id = file_name.split(cut_on)[5] #6 for standard, 8 for two step, 9 for windows
+    pair_id = file_name.split(cut_on)[5] #6 for standard, 8 two step, 9 on windows, 5in github v1
     pair_id = int(pair_id.split(".p")[0])
-    pre_type = file_name.split(cut_on)[3] #4 for standard, 6 for two step, 7 for windows
+    pre_type = file_name.split(cut_on)[3] #4 for standard, 6 two step, 7 on windows, 3 in github v1
     pre_type = pre_type.split(cut_on)[0]
     pre_type = pre_type.split("/")[1]
-    post_type = file_name.split(cut_on)[4] #5 for standard, 7 for two step, 8 for windows
+    post_type = file_name.split(cut_on)[4] #5 for standard, 7 two step, 8 on windows, 4 in github v1
     post_type = post_type.split(cut_on)[0]
     
     #remove gabaergic pre_types since we only want excitatory pairs
@@ -689,7 +694,8 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
     #enc = OneHotEncoder(categories = 'auto')
     print("printing categories")
     #print([[row[post_index], len(data[0])] for row in row_labels])
-    categories = np.asarray([row[target_index] for row in row_labels])
+    #categories = np.asarray([row[target_index] for row in row_labels])
+    categories = np.asarray([row[0]+row[1] for row in row_labels]) #index 0=pre, 1=post
     old_categories = categories.copy()
     #filter out rare classes
     delete_list = []
@@ -703,7 +709,8 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
     print("printing encodings")
     print(one_hot_targets)
     
-    num_partitions = int(len(data)/partition_size)
+    #num_partitions = int(len(data)/partition_size) #for pre or post pooled
+    num_partitions = 2 #for pre-post paired testing 
     #num_partitions = 10
     #print("data = ")
     #print(data)
@@ -712,7 +719,10 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
     categories = np.delete(categories, [31])
     pca_arr = np.delete(pca_arr, [31], axis=0)
     
-    for i in range(0, 100000): 
+    alg_labels = ["gb", "lr",  "adb", "mlp", "rf", "svm"]
+    alg_outputs = [[-1 for i in range(0, 3)] for j in range(0, len(alg_labels))]
+    
+    for i in range(0, 1000): 
 
         #artificially reduce sample size to match 2mM conditions
         #idx = np.random.randint(len(pca_arr), size=78, replace=False)
@@ -750,8 +760,8 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
         #print(X_shuffle)
         #print("y_shuffle")
         #print(y_shuffle)
-        cross_accuracies = []
-        cross_baselines = []
+        cross_accuracies = [[] for i in range(0, len(alg_labels))]
+        cross_baselines = [[] for i in range(0, len(alg_labels))]
         for n in range(1, num_partitions+1):
             
             #try:
@@ -783,32 +793,41 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
         
             #test accuracy on this partition
             #clf = LinearSVC()
-            #clf = LogisticRegression(max_iter=10000)
-            #clf = SVC()
-            #clf = GradientBoostingClassifier(n_estimators=500)
-            #clf = RF()
-            #clf = AdaBoostClassifier()
-            clf = MLPClassifier(hidden_layer_sizes=(50,50,50))
-            #multi_target_svc = MultiOutputClassifier(clf, n_jobs=-1)
-            clf.fit(train_data, train_targets)
-            accuracy = clf.score(test_data, test_targets)
-            print("appending accuracy")
-            print(accuracy)
-            cross_accuracies.append(accuracy)
-            #test_accuracies.append(accuracy)
-            
-            #test baseline accuracy on this partition
-            dummy_clf = DummyClassifier(strategy='most_frequent')
-            dummy_clf.fit(train_data, train_targets)
-            baseline_accuracy = dummy_clf.score(test_data, test_targets)
-            predictions = dummy_clf.predict(test_data)
-            print("printing baseline predictions")
-            print(predictions)
-            #baseline_accuracies.append(baseline_accuracy)
-            cross_baselines.append(baseline_accuracy)
-            print("printing baseline_accuracy")
-            print(baseline_accuracy)
-            #differences.append(accuracy-baseline_accuracy)
+            clf_lr = LogisticRegression(max_iter=10000)
+            clf_svm = SVC()
+            clf_gb = GradientBoostingClassifier(n_estimators=500)
+            clf_rf = RF()
+            clf_ad = AdaBoostClassifier()
+            clf_mlp = MLPClassifier(hidden_layer_sizes=(50,50,50))
+            clf_list =  [clf_gb, clf_lr, clf_ad, clf_mlp, clf_rf, clf_svm]
+            for index in range(0, len(clf_list)):
+                
+                clf = clf_list [index]
+                #multi_target_svc = MultiOutputClassifier(clf, n_jobs=-1)
+                clf.fit(train_data, train_targets)
+                accuracy = clf.score(test_data, test_targets)
+                print("appending accuracy")
+                print(accuracy)
+                
+                #test baseline accuracy on this partition
+                dummy_clf = DummyClassifier(strategy='most_frequent')
+                dummy_clf.fit(train_data, train_targets)
+                baseline_accuracy = dummy_clf.score(test_data, test_targets)
+                predictions = dummy_clf.predict(test_data)
+                
+                #print(index)
+                #alg_outputs[index][0].append(accuracy)
+                #alg_outputs[index][1].append(baseline_accuracy)
+                cross_accuracies[index].append(accuracy)
+                #test_accuracies.append(accuracy)
+                
+                #print("printing baseline predictions")
+                #print(predictions)
+                #baseline_accuracies.append(baseline_accuracy)
+                cross_baselines[index].append(baseline_accuracy)
+                #print("printing baseline_accuracy")
+                #print(baseline_accuracy)
+                #differences.append(accuracy-baseline_accuracy)
         
             """
             #skip random partition if a category has too few examplars for classification
@@ -816,18 +835,28 @@ def cre_accuracy_bootstrap(params, row_labels, pre_index =0, target_index =1, pa
                 print("ValueError: The number of classes has to be greater than one; got 1 class")
                 continue
             """
-        
-        accuracy = statistics.mean(cross_accuracies)
-        baseline = statistics.mean(cross_baselines)
-        difference = accuracy - baseline 
-        
-        test_accuracies.append(accuracy)
-        baseline_accuracies.append(baseline)
-        differences.append(difference)
+        for i in range(0, len(alg_labels)):
+            accuracy = statistics.mean(cross_accuracies[i])
+            baseline = statistics.mean(cross_baselines[i])
+            difference = accuracy - baseline 
+            
+            if alg_outputs[index][0] == -1: #if not filled
+                alg_outputs[i][0] = [accuracy]
+                alg_outputs[i][1] = [baseline]
+                alg_outputs[i][2] = [difference]
+                print("alg_outputs[i][0] = [accuracy]")
+                print(alg_outputs[i][0])
+                    
+            else:
+                print(alg_outputs[i][0])
+                alg_outputs[i][0].append(accuracy)
+                alg_outputs[i][1].append(baseline)
+                alg_outputs[i][2].append(difference)
         
             #except:
             #print("ValueError: This solver needs samples of at least 2 classes in the data, but the data contains only one class: 0")
-    return (test_accuracies, baseline_accuracies, differences)
+    #return (test_accuracies, baseline_accuracies, differences)
+    return (alg_outputs, alg_labels)
 
 
 def cre_accuracy_bootstrap_single_split(params, row_labels, pre_index =0, target_index =1, partition_size=10):
@@ -1082,6 +1111,8 @@ hybrid_baseline_sem = stat.sem(np.array(hybrid_multi_baseline))
 hybrid_pval = wilcoxon(hybrid_multi_accuracies, hybrid_multi_baseline).pvalue
 """
 
+#
+"""
 #Alternates
 phys_multi_accuracies, phys_multi_baseline, phys_multi_differences = cre_accuracy_bootstrap(phys_data, row_labels) #target_index=1 is post type
 #phys_multi_accuracies, phys_multi_baseline, phys_multi_differences = cre_accuracy_bootstrap_single_split(phys_data, row_labels)
@@ -1105,12 +1136,14 @@ model_pval = wilcoxon(model_multi_accuracies, model_multi_baseline).pvalue
 #pickle the outputs
 
 phys_post_distributions = [phys_multi_accuracies, phys_multi_baseline, phys_multi_differences]
-with open('./Figures/dists/physpostbootstrapdists1.3mMfullmlp.p', 'wb') as handle:
+with open('./Figures/dists/physpostbootstrapdists1.3mMfull.p', 'wb') as handle:
     pickle.dump(phys_post_distributions, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 model_post_distributions = [model_multi_accuracies, model_multi_baseline, model_multi_differences]
-with open('./Figures/dists/modelpostbootstrapdists1.3mMfullmlp.p', 'wb') as handle:
+with open('./Figures/dists/modelpostbootstrapdists1.3mMfull.p', 'wb') as handle:
     pickle.dump(model_post_distributions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+"""
+
 
 """
 hybrid_multi_accuracies, hybrid_multi_baseline = cre_accuracy_bootstrap(hybrid_data, row_labels)
@@ -1125,6 +1158,7 @@ hybrid_pval = wilcoxon(hybrid_multi_accuracies, hybrid_multi_baseline).pvalue
 group_pval = kruskal(phys_multi_accuracies, model_multi_accuracies, hybrid_multi_accuracies).pvalue
 """
 
+"""
 #assume normality, homoscedascity
 #group_pval = f_oneway(phys_multi_accuracies, model_multi_accuracies, hybrid_multi_accuracies).pvalue
 print("test group val normality: phys, model, hybrid")
@@ -1153,7 +1187,7 @@ plt.xticks(x_coordinates, x_labels)
 #plt.xlabel("Representation")
 plt.ylabel("Mean Accuracy")
 #plt.ylim([0,1])
-save_name = "./fig4/multi_label_post_bootstrapv2_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_post_bootstrapv2_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
 f.set_dpi(1200)
@@ -1179,7 +1213,7 @@ plt.xticks(x_coordinates, x_labels)
 #plt.xlabel("Representation")
 plt.ylabel("Mean Accuracy")
 #plt.ylim([0,1])
-save_name = "./fig4/multi_label_post_bootstrap_barv2_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_post_bootstrap_barv2_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_bootstrap_bar_2mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_bar_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
@@ -1198,7 +1232,7 @@ frac_positive = len([1 for entry in model_multi_differences if entry>0])/len(mod
 frac_nonneg = len([1 for entry in model_multi_differences if entry>=0])/len(model_multi_differences)
 plt.hist(model_multi_differences, bins=30)
 plt.title("Post_type model vs baseline histogram, positive frac: "+str(frac_positive )+" nonneg frac: "+str(frac_nonneg))
-save_name = "./fig4/multi_label_post_bootstrapv2_histmodel_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_post_bootstrapv2_histmodel_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_bootstrap_bar_2mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_bar_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
@@ -1217,7 +1251,7 @@ frac_positive = len([1 for entry in phys_multi_differences if entry>0])/len(phys
 frac_nonneg = len([1 for entry in phys_multi_differences if entry>=0])/len(phys_multi_differences)
 plt.hist(phys_multi_differences, bins=30)
 plt.title("Post_type phys vs baseline histogram, positive frac: "+str(frac_positive )+" nonneg frac: "+str(frac_nonneg))
-save_name = "./fig4/multi_label_post_bootstrapv2_histphys_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_post_bootstrapv2_histphys_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_bootstrap_bar_2mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_bar_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
@@ -1225,6 +1259,7 @@ f.set_dpi(1200)
 f.tight_layout()
 plt.savefig(save_name, Transparent=True)
 #plt.show()
+"""
 
 
 #repeat for pre_type accuracy
@@ -1247,6 +1282,8 @@ model_baseline_sem = stat.sem(np.array(model_multi_baseline))
 model_pval = wilcoxon(model_multi_accuracies, model_multi_baseline).pvalue
 """
 
+"""
+phys_alg_outputs, phys_alg_labels =cre_accuracy_bootstrap(phys_data, row_labels, target_index =0)
 phys_multi_accuracies, phys_multi_baseline, phys_multi_differences = cre_accuracy_bootstrap(phys_data, row_labels, target_index =0)
 phys_multi_mean = statistics.mean(phys_multi_accuracies)
 phys_multi_sem = stat.sem(np.array(phys_multi_accuracies))
@@ -1262,16 +1299,20 @@ model_multi_sem = stat.sem(np.array(model_multi_accuracies))
 model_baseline_mean = statistics.mean(model_multi_baseline)
 model_baseline_sem = stat.sem(np.array(model_multi_baseline))
 model_pval = wilcoxon(model_multi_accuracies, model_multi_baseline).pvalue
+"""
+
+phys_alg_outputs, phys_alg_labels =cre_accuracy_bootstrap(phys_data, row_labels, target_index =1)
+model_alg_outputs, phys_alg_labels =cre_accuracy_bootstrap(model_data, row_labels, target_index =1)
 
 #pickle the outputs
 
-phys_pre_distributions = [phys_multi_accuracies, phys_multi_baseline, phys_multi_differences]
-with open('./Figures/dists/physprebootstrapdists1.3mMfullmlp.p', 'wb') as handle:
-    pickle.dump(phys_pre_distributions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('./supervised_dists/physprepostalgcompdists1.3mMfulln1000r3.p', 'wb') as handle:
+    pickle.dump((phys_alg_outputs, phys_alg_labels), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-model_pre_distributions = [model_multi_accuracies, model_multi_baseline, model_multi_differences]
-with open('./Figures/dists/modelprebootstrapdists1.3mMfullmlp.p', 'wb') as handle:
-    pickle.dump(model_pre_distributions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('./supervised_dists/modelprepostalgcompdists1.3mMfulln1000r3.p', 'wb') as handle:
+    pickle.dump((model_alg_outputs, phys_alg_labels), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 
 #x_labels = ["phys\n"+pval_to_str(phys_pval),"model\n"+pval_to_str(model_pval), "baseline"]
 x_labels = ["phys","model", "baseline"]
@@ -1290,12 +1331,12 @@ plt.xticks(x_coordinates, x_labels)
 #plt.xlabel("Representation")
 plt.ylabel("Mean Accuracy")
 #plt.ylim([0,1])
-save_name = "./fig4/multi_label_pre_bootstrapv2_1.3mMmlp.svg"
+#save_name = "./Figures/fig3/multi_label_pre_bootstrapv2_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_pre_shuffle_1.3mM.svg"
 f.set_size_inches(((2.3622, 2.465)))
 f.set_dpi(1200)
 f.tight_layout()
-plt.savefig(save_name, Transparent=True)
+#plt.savefig(save_name, Transparent=True)
 #plt.show()
 
 
@@ -1318,12 +1359,12 @@ plt.xticks(x_coordinates, x_labels)
 #plt.xlabel("Representation")
 plt.ylabel("Mean Accuracy")
 #plt.ylim([0,1])
-save_name = "./fig4/multi_label_pre_bootstrapv2_bar_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_pre_bootstrapv2_bar_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_pre_shuffle_bar_1.3mM.svg"
 f.set_size_inches(((2.3622, 2.465)))
 f.set_dpi(1200)
 f.tight_layout()
-plt.savefig(save_name, Transparent=True)
+#plt.savefig(save_name, Transparent=True)
 #plt.show()
 
 
@@ -1337,13 +1378,13 @@ frac_nonneg = len([1 for entry in model_multi_differences if entry>=0])/len(mode
 plt.hist(model_multi_differences, bins=30)
 plt.title("Pre_type model vs baseline histogram, positive frac: "+str(frac_positive )+" nonneg frac: "+str(frac_nonneg))
 
-save_name = "./fig4/multi_label_pre_bootstrapv2_histmodel_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_pre_bootstrapv2_histmodel_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_bootstrap_bar_2mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_bar_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
 f.set_dpi(1200)
 f.tight_layout()
-plt.savefig(save_name, Transparent=True)
+#plt.savefig(save_name, Transparent=True)
 
 #plt.show()
 
@@ -1358,13 +1399,13 @@ frac_nonneg = len([1 for entry in phys_multi_differences if entry>=0])/len(phys_
 plt.hist(phys_multi_differences, bins=30)
 plt.title("Pre_type phys vs baseline histogram, positive frac: "+str(frac_positive )+" nonneg frac: "+str(frac_nonneg))
 
-save_name = "./fig4/multi_label_pre_bootstrapv2_histphys_1.3mMmlp.svg"
+save_name = "./Figures/fig3/multi_label_pre_bootstrapv2_histphys_1.3mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_bootstrap_bar_2mM.svg"
 #save_name = "./Figures/fig3/multi_label_post_shuffle_bar_1.3mM.svg"
 f.set_size_inches((2.3622, 2.465))
 f.set_dpi(1200)
 f.tight_layout()
-plt.savefig(save_name, Transparent=True)
+#plt.savefig(save_name, Transparent=True)
 
 #plt.show()
 
@@ -1439,6 +1480,12 @@ for i in range(0, len(params_data)):
              raw_post_pre[post_type][pre_type] = np.array(row)
     else:
         raw_post_pre[post_type] = {pre_type: np.array(row)}
+
+#plot 
+L4pyr_types = ['nr5a1', 'rorb']
+
+l5et_types = ['sim1', 'fam84b']
+
 
 #fig, ax = plt.subplots()
 
@@ -1811,8 +1858,8 @@ f.set_size_inches((7.4, 2.54))
 f.set_dpi(600)
 f.tight_layout()
 plt.legend()
-save_name = ".fig4/stabilityv2_1.3mM.svg"
-plt.savefig(save_name)
+save_name = "./Figures/fig4/stabilityv2_1.3mM.svg"
+#plt.savefig(save_name)
 #plt.show()
     
     

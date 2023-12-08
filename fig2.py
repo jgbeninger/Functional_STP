@@ -655,7 +655,7 @@ for i in range(0, len(data_centers_pre)):
     ax1 = individual_pres[:, 0] #PC1
     ax2 = individual_pres[:, 1] #PC1
     label = str(unique_pre_types[i])
-    ax.scatter(ax1, ax2, label=cre_capital[label], color=transcriptomic_colours[label])
+    ax.scatter(ax1, ax2, label=cre_capital[label], color=transcriptomic_colours[label], alpha=0.7)
 plt.xlabel("R-PC1")
 plt.ylabel("R-PC2")
 f.set_dpi(1200)
@@ -700,7 +700,7 @@ for i in range(0, len(data_centers_pre)):
     ax1 = individual_pres[:, 0] #PC1
     ax2 = individual_pres[:, 1] #PC1
     label = str(unique_pre_types[i])
-    ax.scatter(ax1, ax2, label=label)
+    ax.scatter(ax1, ax2, label=label, alpha=0.7)
 plt.xlabel("PC1")
 plt.ylabel("PC2")
 f.set_dpi(600)
@@ -814,7 +814,7 @@ for i in range(0, len(data_centers_post)):
     #print(label)
     #print(len(individual_posts))
     #print(len(ax1))
-    ax.scatter(ax1, ax2, label=cre_capital[label], color=transcriptomic_colours[label])
+    ax.scatter(ax1, ax2, label=cre_capital[label], color=transcriptomic_colours[label], alpha=0.7)
 plt.xlabel("R-PC1")
 plt.ylabel("R-PC2")
 #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
@@ -869,7 +869,7 @@ for i in range(0, len(data_centers_post)):
     #print(label)
     #print(len(individual_posts))
     #print(len(ax1))
-    ax.scatter(ax1, ax2, label=label)
+    ax.scatter(ax1, ax2, label=label, alpha=0.7)
     #plt.scatter(ax1, ax2, label=label)
 plt.xlabel("PC1")
 plt.ylabel("PC2")
