@@ -23,6 +23,8 @@ generate_fig2.sh
 generate_fig3.sh
 generate_fig4.sh
 
+These scripts reproduce the paper with figure numbering corresponding to the BioRxiv version of the manuscript, linked above.  
+
 The remaining scripts in the repository support our testing of continuum hypotheses in clustering as well as additional analyses not included in the main figures of the paper, many of which are summarized in supplemental figures.
 
 ## Paper Citation
