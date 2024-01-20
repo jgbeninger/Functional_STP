@@ -28,6 +28,8 @@ These scripts reproduce the paper with figure numbering corresponding to the Bio
 The remaining scripts in the repository support our testing of continuum hypotheses in clustering as well as additional analyses not included in the main figures of the paper, many of which are summarized in supplemental figures.
 
 ## Paper Citation
+We encourage all users of the archived version of this codebase to search for and cite bibliographic information corresponding the most recent version of our paper (pending publication: 2024). If that reference is not yet finalized, please direct references to the BioRxiv version below:  
+
 @article{beninger2023functional,
   title={Functional Subtypes of Synaptic Dynamics in Mouse and Human},
   author={Beninger, John and Rossbroich, Julian and Toth, Katalin and Naud, Richard},
