@@ -28,7 +28,7 @@ These scripts reproduce the paper with figure numbering corresponding to the Bio
 The remaining scripts in the repository support our testing of continuum hypotheses in clustering as well as additional analyses not included in the main figures of the paper, many of which are summarized in supplemental figures.
 
 # Archived Version
-An archived version of this codebase has been generated to correspond to the published version of this paper. We will likely also maintain a live public version of the code on Github: https://github.com/jgbeninger/Functional_STP 
+An archived version of this codebase has been generated to correspond to the published version of this paper: https://zenodo.org/doi/10.5281/zenodo.10542491. We will likely also maintain a live public version of the code on Github: https://github.com/jgbeninger/Functional_STP 
 
 ## Paper Citation
 We encourage all users of the archived version of this codebase to search for and cite bibliographic information corresponding the most recent version of our paper (pending publication: 2024). If that reference is not yet finalized, please direct references to the BioRxiv version below:  
