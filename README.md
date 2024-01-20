@@ -23,7 +23,7 @@ generate_fig2.sh
 generate_fig3.sh
 generate_fig4.sh
 
-The remaining scripts in the repository support additional analyses not included in the main figures of the paper, many of which are summarized in supplemental figures.
+The remaining scripts in the repository support our testing of continuum hypotheses in clustering as well as additional analyses not included in the main figures of the paper, many of which are summarized in supplemental figures.
 
 ## Paper Citation
 @article{beninger2023functional,
