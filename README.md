@@ -16,11 +16,13 @@ Copyright (C) 2023 John Beninger, Julian Rossbroich, Richard Naud
 
 # Functional_STP
 Code repository for the paper Functional Subtypes of Synaptic Dynamics in Mouse and Human
+
 Final Version:
 (see: https://www.cell.com/cell-reports/fulltext/S2211-1247(24)00113-X?uuid=uuid%3A545e8120-bfa9-4120-82ce-8941a6ade19f )
-Early Version:
 
+Early Version:
 (see: https://www.biorxiv.org/content/10.1101/2023.05.23.541971v1.abstract).
+
 To reproduce the paper's main figure run the following bash scripts in sequence:
 run_fits.sh
 generate_fig1.sh
